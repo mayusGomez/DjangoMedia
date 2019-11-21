@@ -1,4 +1,6 @@
 from django.db import models
+import hashlib
+from django.core.files.storage import Storage
 
 
 class Company(models.Model):
@@ -20,7 +22,8 @@ class DocumentType(models.Model):
     description_type = models.CharField(max_length=100)
     file_extension = models.CharField(max_length=10)
     file_size = models.IntegerField()
-    folder_path = models.CharField(max_length=250)
+    folder_path = models.CharField(max_length=10)
+    sub_folder_path = models.CharField(max_length=40, null=True, blank=True)
 
     def __str__(self):
         """."""
@@ -33,7 +36,35 @@ class DocumentType(models.Model):
 
 def directory_path(instance, filename):
     """."""
-    file_path = '{0}/{1}'.format(instance.document_type_code.folder_path, 'test')
+
+    # In COR_PARAMETER, add a new parameter by company, in this repo is a dict
+    base_folder_by_company = {
+        1: 'ftpettc',
+        5: 'ftpnrcc'
+    }
+
+    filename_new = hashlib.md5(filename.encode()).hexdigest()
+    company = base_folder_by_company[instance.company.id]
+    file_path = '{}/{}/'.format(company, instance.document_type.folder_path)
+
+    sub_folder_list_conf = instance.document_type.sub_folder_path.split(',')
+    sub_folder_list = instance.folder_params.split(',')
+    sub_folder = ''
+
+    # validate sub_folder structure
+    if sub_folder_list_conf and len(sub_folder_list) == len(sub_folder_list_conf):
+        storage = Storage()
+        for sub_folder_item in sub_folder_list:
+            valid_sub_folder = storage.get_valid_name(sub_folder_item)
+            if valid_sub_folder != '':
+                sub_folder += '{}/'.format(valid_sub_folder)
+            else:
+                # if not is a valid subfolder, dicard subfolder
+                sub_folder = ''
+                break
+
+    file_path += sub_folder
+    file_path += filename_new
     return file_path
 
 
@@ -67,7 +98,8 @@ class Document(models.Model):
     attachment_file = models.FileField(verbose_name="File", upload_to=directory_path, max_length=100)
     file_name = models.CharField(verbose_name="File name", max_length=50, null=True, blank=True)
     date = models.DateTimeField(auto_now_add=True, editable=False)
-    company = models.ForeignKey('Company', editable=False, on_delete='DO_NOTHING')
+    company = models.ForeignKey('Company', on_delete='DO_NOTHING')
+    folder_params = models.CharField(max_length=100, null=True, blank=True)
 
     all_objects = models.Manager()
 
