@@ -43,12 +43,17 @@ def directory_path(instance, filename):
         5: 'ftpnrcc'
     }
 
-    filename_new = hashlib.md5(filename.encode()).hexdigest()
+    #  Concat filename with time for generate new_name
+    filename_new = '{}{}'.format(filename, instance.date.strftime('%H:%M:%S'))
+    filename_new = hashlib.md5(filename_new.encode()).hexdigest()
+
     company = base_folder_by_company[instance.company.id]
     file_path = '{}/{}/'.format(company, instance.document_type.folder_path)
 
-    sub_folder_list_conf = instance.document_type.sub_folder_path.split(',')
-    sub_folder_list = instance.folder_params.split(',')
+    sub_folder_list_conf = instance.document_type.sub_folder_path.split(',') \
+        if instance.document_type.sub_folder_path else []
+    sub_folder_list = instance.folder_params.split(',') \
+        if instance.folder_params else []
     sub_folder = ''
 
     # validate sub_folder structure
